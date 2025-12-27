@@ -11,72 +11,71 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # --------------------------------------------------
-    # 1️⃣ CHECKOUT CODE
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # 1. Checkout source code (FULL history for TruffleHog)
+    # ----------------------------------------------------
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0   # REQUIRED for TruffleHog history scan
+        fetch-depth: 0
 
-    # --------------------------------------------------
-    # 2️⃣ SETUP PYTHON
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # 2. Setup Python
+    # ----------------------------------------------------
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.8"
 
-    # --------------------------------------------------
-    # 3️⃣ PYTHON SAST — BANDIT (MEDIUM + HIGH)
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # 3. Python SAST - Bandit
+    # ----------------------------------------------------
     - name: Install Bandit
       run: pip install bandit
 
-    - name: Run Bandit Scan
+    - name: Run Bandit Scan (Medium & High)
       run: |
         bandit -r . -ll -f json -o bandit-report.json || true
 
-    # --------------------------------------------------
-    # 4️⃣ SECRETS DETECTION — TRUFFLEHOG
-    # --------------------------------------------------
-    - name: Run TruffleHog (Secrets Scan)
+    # ----------------------------------------------------
+    # 4. Secrets Scanning - TruffleHog (FIXED)
+    # ----------------------------------------------------
+    - name: Run TruffleHog Secrets Scan
       uses: trufflesecurity/trufflehog@main
+      continue-on-error: true
       with:
         path: .
         base: HEAD~1
         head: HEAD
         extra_args: --json
-      continue-on-error: true
 
-    # --------------------------------------------------
-    # 5️⃣ CONTAINER SECURITY — TRIVY (Filesystem Scan)
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # 5. Dependency & File System Scan - Trivy
+    # ----------------------------------------------------
     - name: Run Trivy Scan
       uses: aquasecurity/trivy-action@0.24.0
+      continue-on-error: true
       with:
         scan-type: fs
         scan-ref: .
         format: json
         output: trivy-report.json
         severity: HIGH,CRITICAL
-      continue-on-error: true
 
-    # --------------------------------------------------
-    # 6️⃣ IaC SECURITY — CHECKOV
-    # --------------------------------------------------
-    - name: Run Checkov (IaC Scan)
+    # ----------------------------------------------------
+    # 6. Infrastructure as Code Scan - Checkov
+    # ----------------------------------------------------
+    - name: Run Checkov Scan
       uses: bridgecrewio/checkov-action@v12
+      continue-on-error: true
       with:
-        directory: .
         framework: terraform
         output_format: json
         output_file_path: checkov-report.json
-      continue-on-error: true
 
-    # --------------------------------------------------
-    # 7️⃣ UPLOAD ALL SECURITY REPORTS
-    # --------------------------------------------------
+    # ----------------------------------------------------
+    # 7. Upload ALL Security Reports (Artifacts)
+    # ----------------------------------------------------
     - name: Upload Security Reports
       if: always()
       uses: actions/upload-artifact@v4
@@ -84,8 +83,8 @@ jobs:
         name: security-reports
         path: |
           bandit-report.json
-          trivy-report.json
-          checkov-report.json
+          trivy-rep
+
 
 
 
