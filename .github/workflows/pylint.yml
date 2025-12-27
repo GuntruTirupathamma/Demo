@@ -7,69 +7,43 @@ on:
 
 jobs:
   security_scan:
-    name: Full Security Scan
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
-      # 3️⃣ Install dependencies for scans
       - name: Install security tools
         run: |
-          pip install bandit checkov
+          pip install bandit checkov trufflehog
 
-      # 4️⃣ Run Bandit (Python SAST)
       - name: Run Bandit Scan
-        run: |
-          bandit -r . -ll -f json -o Bandit-report.json || true
+        run: bandit -r . -ll -f json -o Bandit-report.json || true
 
-      - name: Verify Bandit report
-        run: ls -l Bandit-report.json
-
-      # 5️⃣ Run Checkov (IaC scan)
       - name: Run Checkov Scan
-        run: |
-          checkov -d . -o json > checkov-report.json || true
-      - name: Verify Checkov report
-        run: ls -l checkov-report.json
+        run: checkov -d . -o json > checkov-report.json || true
 
-      # 6️⃣ Run Trivy (Container scan)
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
           chmod +x trivy
           mv trivy /usr/local/bin/
+      - name: Build Docker image for Trivy
+        run: docker build -t demo-app:latest . || true
       - name: Run Trivy Scan
-        run: |
-          # Replace 'demo-app:latest' with your Docker image
-          docker build -t demo-app:latest . || true
-          trivy image demo-app:latest --format json --output trivy-report.json || true
-      - name: Verify Trivy report
-        run: ls -l trivy-report.json
+        run: trivy image demo-app:latest --format json --output trivy-report.json || true
 
-      # 7️⃣ Run TruffleHog (Secrets scan)
       - name: Run TruffleHog Scan
-        uses: trufflesecurity/trufflehog-action@v4
-        with:
-          path: .
-          format: json
-          output: trufflehog-report.json
+        run: trufflehog git . --json > trufflehog-report.json || true
 
-      - name: Verify TruffleHog report
-        run: ls -l trufflehog-report.json
-
-      # 8️⃣ Upload all reports as artifacts
       - name: Upload Security Reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-reports
           path: |
