@@ -1,93 +1,98 @@
 name: Security CI Pipeline
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
 
 jobs:
 
-  # ---------------------------
-  # Python Security Scan (Bandit)
-  # ---------------------------
+  # 1. Python SAST - Bandit
   bandit_scan:
     name: Python Security Scan (Bandit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
-      - run: pip install bandit
-      - run: |
-          bandit -r . -lll -f json -o bandit-report.json || echo "{}" > bandit-report.json
-      - uses: actions/upload-artifact@v4
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit (Medium & High)
+        run: |
+          bandit -r . -ll -i medium,high -f json -o bandit-report.json || true
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-findings
           path: bandit-report.json
 
-  # ---------------------------
-  # IaC Security Scan (Checkov)
-  # ---------------------------
+  # 2. IaC Scan - Checkov
   checkov_scan:
-    name: IaC Scan (Checkov)
+    name: IaC Security Scan (Checkov)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: pip install checkov
-      - run: |
-          checkov -d . -o json > checkov-report.json || echo "{}" > checkov-report.json
-      - uses: actions/upload-artifact@v4
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov
+        run: checkov -d . -o json > checkov-report.json || true
+
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
         with:
           name: checkov-findings
           path: checkov-report.json
 
-  # ---------------------------
-  # Secrets Scan (TruffleHog)
-  # ---------------------------
+  # 3. Secrets Scan - TruffleHog
   trufflehog_scan:
-    name: Secrets Scan (TruffleHog)
+    name: Secrets Detection (TruffleHog)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: pip install trufflehog
-      - run: |
-          trufflehog filesystem . --json > trufflehog-report.json || echo "{}" > trufflehog-report.json
-      - uses: actions/upload-artifact@v4
+
+      - name: Install TruffleHog
+        run: pip install trufflehog
+
+      - name: Run TruffleHog
+        run: trufflehog git . --json > trufflehog-report.json || true
+
+      - name: Upload TruffleHog Report
+        uses: actions/upload-artifact@v4
         with:
           name: trufflehog-findings
           path: trufflehog-report.json
 
-  # ---------------------------
-  # Container Scan (Trivy)
-  # ---------------------------
+  # 4. Container Scan - Trivy
   trivy_scan:
-    name: Container Scan (Trivy)
+    name: Container Security Scan (Trivy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      # Build Docker image if Dockerfile exists
-      - name: Build Docker image
+      - name: Build Docker image if Dockerfile exists
         run: |
           if [ -f Dockerfile ]; then
-            docker build -t demo-app . || echo "Docker build failed"
+            docker build -t demo-app .
           else
-            echo "No Dockerfile found, skipping image build"
+            echo "No Dockerfile found, skipping container scan."
+            exit 0
           fi
 
-      # Run Trivy safely
-      - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@0.33.1
+      - name: Run Trivy Scan
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           scan-type: image
           image-ref: demo-app
           format: json
           output: trivy-report.json
-          exit-code: 0  # ensures workflow doesn’t fail on vulnerabilities
-          severity: HIGH,CRITICAL
+          exit-code: 0
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
         with:
           name: trivy-findings
           path: trivy-report.json
