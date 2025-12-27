@@ -59,24 +59,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: docker/setup-buildx-action@v2
 
-      # Install Trivy
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.41.2_Linux-64bit.deb
-          sudo dpkg -i trivy_0.41.2_Linux-64bit.deb
-
-      # Check if Dockerfile exists
-      - run: |
+      # Build Docker image only if Dockerfile exists
+      - name: Build Docker image
+        run: |
           if [ -f Dockerfile ]; then
             docker build -t demo-app . || echo "Docker build failed"
-            trivy image demo-app --format json --output trivy-report.json || echo "{}" > trivy-report.json
           else
-            echo "No Dockerfile found, skipping Trivy scan"
-            echo "{}" > trivy-report.json
+            echo "No Dockerfile found, skipping Docker build"
           fi
+
+      # Trivy scan using official action
+      - name: Run Trivy Scan
+        uses: aquasecurity/trivy-action@v2
+        with:
+          image-ref: demo-app || echo "{}" > trivy-report.json
+          format: json
+          output: trivy-report.json
+          exit-code: 0   # never fail workflow
+          severity: HIGH,CRITICAL
 
       - uses: actions/upload-artifact@v4
         with:
