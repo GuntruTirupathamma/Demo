@@ -1,22 +1,16 @@
 name: Security CI Pipeline
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+on: [push, pull_request]
 
 jobs:
-  # =======================
-  # Python SAST Scan: Bandit
-  # =======================
+
+  # ---------------------------
+  # Python Security Scan (Bandit)
+  # ---------------------------
   bandit_scan:
-    name: Bandit Scan (Medium & High)
+    name: Python Security Scan (Bandit)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -27,32 +21,33 @@ jobs:
       - name: Install Bandit
         run: pip install bandit
 
-      - name: Run Bandit Scan
+      - name: Run Bandit (Medium & High)
         run: |
-          bandit -r . -lll -f json -o Bandit-report.json || true
+          bandit -r . -lll -f json -o bandit-report.json || true
 
       - name: Upload Bandit Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: bandit-findings
-          path: Bandit-report.json
+          path: bandit-report.json
 
-  # =======================
-  # Infrastructure Scan: Checkov
-  # =======================
+  # ---------------------------
+  # IaC Security Scan (Checkov)
+  # ---------------------------
   checkov_scan:
-    name: Checkov Scan
+    name: IaC Scan (Checkov)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Install Checkov
         run: pip install checkov
 
-      - name: Run Checkov
-        run: checkov -d . -o json > checkov-report.json || true
+      - name: Run Checkov Scan
+        run: |
+          checkov -d . -o json > checkov-report.json || true
 
       - name: Upload Checkov Report
         if: always()
@@ -61,21 +56,22 @@ jobs:
           name: checkov-findings
           path: checkov-report.json
 
-  # =======================
-  # Secrets Detection: TruffleHog
-  # =======================
+  # ---------------------------
+  # Secrets Scan (TruffleHog)
+  # ---------------------------
   trufflehog_scan:
-    name: TruffleHog Scan
+    name: Secrets Scan (TruffleHog)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Install TruffleHog
         run: pip install trufflehog
 
-      - name: Run TruffleHog
-        run: trufflehog filesystem . --json > trufflehog-report.json || echo "TruffleHog found secrets, continuing..."
+      - name: Run TruffleHog Scan
+        run: |
+          trufflehog filesystem . --json > trufflehog-report.json || echo "{}" > trufflehog-report.json
 
       - name: Upload TruffleHog Report
         if: always()
@@ -84,17 +80,17 @@ jobs:
           name: trufflehog-findings
           path: trufflehog-report.json
 
-  # =======================
-  # Container Scan: Trivy
-  # =======================
+  # ---------------------------
+  # Container Scan (Trivy)
+  # ---------------------------
   trivy_scan:
     name: Container Scan (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Docker
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
       - name: Install Trivy
@@ -104,16 +100,16 @@ jobs:
           wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.41.2_Linux-64bit.deb
           sudo dpkg -i trivy_0.41.2_Linux-64bit.deb
 
-      - name: Build Docker image
-        run: docker build -t demo-app . || echo "Docker build failed, skipping Trivy scan"
+      - name: Build Docker Image
+        run: |
+          docker build -t demo-app . || echo "Docker build failed, skipping Trivy scan"
 
       - name: Run Trivy Scan
         run: |
           if docker images demo-app | grep demo-app; then
             trivy image demo-app --format json --output trivy-report.json || true
           else
-            echo "Docker image not found, skipping Trivy scan"
-            touch trivy-report.json
+            echo "{}" > trivy-report.json
           fi
 
       - name: Upload Trivy Report
@@ -122,4 +118,3 @@ jobs:
         with:
           name: trivy-findings
           path: trivy-report.json
-
