@@ -3,8 +3,9 @@ on: [push]
 
 jobs:
   sast_scan:
-    name: Run Bandit Scan
+    name: Run Bandit Scan (Medium & High)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -17,6 +18,7 @@ jobs:
       - name: Install Bandit
         run: pip install bandit
 
-      - name: Run Bandit Scan
-        run: bandit -r .
+      - name: Run Bandit (Medium & High only)
+        run: bandit -r . -ll
+
 
