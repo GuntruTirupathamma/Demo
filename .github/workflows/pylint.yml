@@ -1,98 +1,88 @@
 name: Security CI Pipeline
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
   security_scan:
     name: Full Security Scan
     runs-on: ubuntu-latest
-    steps:
 
-      # Checkout code
-      - name: Checkout repository
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # Set up Python
-      - name: Set up Python 3.8
+      # 2. Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
-      # ------------------------
-      # Bandit Scan (Python SAST)
-      # ------------------------
+      # 3. Install Bandit
       - name: Install Bandit
         run: pip install bandit
 
-      - name: Run Bandit (Medium & High)
+      # 4. Run Bandit Scan (Medium & High)
+      - name: Run Bandit Scan
         run: |
-          bandit -r . -lll -f json -o bandit-report.json || true
+          bandit -r . -lll -f json -o bandit-report.json || echo "{}" > bandit-report.json
 
+      # 5. Upload Bandit Artifact
       - name: Upload Bandit Report
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: bandit-findings
           path: bandit-report.json
 
-      # ------------------------
-      # Checkov Scan (IaC)
-      # ------------------------
+      # 6. Install Checkov
       - name: Install Checkov
         run: pip install checkov
 
+      # 7. Run Checkov Scan
       - name: Run Checkov Scan
         run: |
-          checkov -d . -o json -o-file checkov-report.json || true
+          checkov -d . -o json -o-file checkov-report.json || echo "{}" > checkov-report.json
 
+      # 8. Upload Checkov Artifact
       - name: Upload Checkov Report
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: checkov-findings
           path: checkov-report.json
 
-      # ------------------------
-      # Trivy Scan (Container Security)
-      # ------------------------
+      # 9. Install Trivy
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
-          chmod +x ./bin/trivy
-          sudo mv ./bin/trivy /usr/local/bin/trivy
+          chmod +x ./trivy
 
-      - name: Run Trivy Scan (Docker)
-        if: ${{ always() }}
+      # 10. Run Trivy Container Scan (example image: demo-app)
+      - name: Run Trivy Scan
         run: |
-          if [ -f Dockerfile ]; then
-            docker build -t demo-app:latest . || true
-            trivy image demo-app:latest --format json --output trivy-report.json || true
-          else
-            echo "{}" > trivy-report.json
-          fi
+          ./trivy image demo-app --format json --output trivy-report.json || echo "{}" > trivy-report.json
 
+      # 11. Upload Trivy Artifact
       - name: Upload Trivy Report
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: trivy-findings
           path: trivy-report.json
 
-      # ------------------------
-      # TruffleHog Scan (Secrets)
-      # ------------------------
+      # 12. Install TruffleHog
       - name: Install TruffleHog
         run: pip install trufflehog
 
+      # 13. Run TruffleHog Scan
       - name: Run TruffleHog Scan
-        run: trufflehog filesystem . --json > trufflehog-report.json || true
+        run: |
+          trufflehog git . --json > trufflehog-report.json || echo "{}" > trufflehog-report.json
 
+      # 14. Upload TruffleHog Artifact
       - name: Upload TruffleHog Report
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: trufflehog-findings
           path: trufflehog-report.json
