@@ -18,9 +18,9 @@ jobs:
         with:
           python-version: "3.8"
 
-      # -------------------
+      
       # Bandit (Python Security)
-      # -------------------
+      
       - name: Install Bandit
         run: pip install bandit
 
@@ -35,9 +35,9 @@ jobs:
           name: bandit-findings
           path: bandit-report.json
 
-      # -------------------
+      
       # Checkov (Infrastructure as Code - Terraform)
-      # -------------------
+  
       - name: Install Checkov
         run: pip install checkov
 
@@ -52,9 +52,9 @@ jobs:
           name: checkov-findings
           path: checkov-report.json
 
-      # -------------------
+      
       # TruffleHog (Secrets Detection)
-      # -------------------
+      
       - name: Install TruffleHog
         run: pip install trufflehog
 
@@ -69,9 +69,9 @@ jobs:
           name: trufflehog-findings
           path: trufflehog-report.json
 
-      # -------------------
+      
       # Trivy (Container Security)
-      # -------------------
+      
       - name: Install Trivy
         run: |
           mkdir -p $HOME/.trivy
