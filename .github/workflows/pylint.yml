@@ -53,6 +53,9 @@ jobs:
 
       - name: Run SonarQube Scan
         run: |
+          echo "Using Java version:"
+          java -version
+          echo "JAVA_HOME is $JAVA_HOME"
           sonar-scanner \
             -Dsonar.projectKey=your-project-key \
             -Dsonar.sources=. \
