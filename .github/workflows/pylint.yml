@@ -16,27 +16,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # -------------------
-      # 1. Checkout Code
-      # -------------------
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------
-      # 2. Set up Python
-      # -------------------
+      # 2. Python Setup
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # -------------------
       # 3. Bandit (Python SAST)
-      # -------------------
       - name: Install Bandit
         run: pip install bandit
 
-      - name: Run Bandit (Medium & High)
+      - name: Run Bandit
         run: |
           bandit -r . -ll -f json -o bandit-report.json || true
 
@@ -47,20 +41,16 @@ jobs:
           name: bandit-findings
           path: bandit-report.json
 
-      # -------------------
-      # 4. CodeQL (SAST – replacement for SonarQube)
-      # -------------------
+      # 4. CodeQL (SAST – SonarQube replacement)
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: python
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
 
-      # -------------------
       # 5. Checkov (IaC Security)
-      # -------------------
       - name: Install Checkov
         run: pip install checkov
 
@@ -75,9 +65,7 @@ jobs:
           name: checkov-findings
           path: checkov-report.json
 
-      # -------------------
-      # 6. TruffleHog (Secrets Scanning)
-      # -------------------
+      # 6. TruffleHog (Secrets)
       - name: Install TruffleHog
         run: pip install trufflehog
 
