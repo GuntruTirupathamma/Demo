@@ -11,20 +11,25 @@ jobs:
     name: Full Security Scan
     runs-on: ubuntu-latest
 
+    permissions:
+      actions: read
+      contents: read
+      security-events: write   # REQUIRED for CodeQL
+
     steps:
-      
+      # -------------------
       # 1. Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      
+      # -------------------
       # 2. Bandit - Python Security Analysis
       - name: Install Bandit
         run: pip install bandit
 
       - name: Run Bandit (Medium & High)
         run: |
-          bandit -r . -ll -i low -f json -o bandit-report.json || echo "{}" > bandit-report.json
+          bandit -r . -ll -f json -o bandit-report.json || true
 
       - name: Upload Bandit Report
         uses: actions/upload-artifact@v4
@@ -34,17 +39,17 @@ jobs:
           path: bandit-report.json
 
       # -------------------
-      # 3. SonarCloud - Python Code Quality & Security
-      - name: Run SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@v2
+      # 3. CodeQL - Deep Security Analysis (REPLACES SONAR)
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
         with:
-          args: >
-            -Dsonar.projectKey=your-project-key
-            -Dsonar.organization=your-org
-            -Dsonar.sources=.
-            -Dsonar.python.version=3
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          languages: python
+
+      - name: CodeQL Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
       # -------------------
       # 4. Checkov - Infrastructure as Code Security
@@ -53,7 +58,7 @@ jobs:
 
       - name: Run Checkov
         run: |
-          checkov -d . --quiet --output json > checkov-report.json || echo "{}" > checkov-report.json
+          checkov -d . --quiet --output json > checkov-report.json || true
 
       - name: Upload Checkov Report
         uses: actions/upload-artifact@v4
@@ -69,7 +74,7 @@ jobs:
 
       - name: Run TruffleHog
         run: |
-          trufflehog git https://github.com/${{ github.repository }} --json > trufflehog-report.json || echo "{}" > trufflehog-report.json
+          trufflehog filesystem . --json > trufflehog-report.json || true
 
       - name: Upload TruffleHog Report
         uses: actions/upload-artifact@v4
@@ -82,14 +87,116 @@ jobs:
       # 6. Trivy - Container Security
       - name: Install Trivy
         run: |
-          mkdir -p $HOME/.trivy
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b $HOME/.trivy
-          echo "$HOME/.trivy" >> $GITHUB_PATH
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          sudo mv ./trivy /usr/local/bin/
 
       - name: Run Trivy Scan
         run: |
-          # Replace 'demo-app' with your container image name
-          trivy image demo-app --format json --output trivy-report.json || echo "{}" > trivy-report.json
+          # Replace with your actual image name after build
+          trivy image demo-app --format json --output trivy-report.json || true
+
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-findings
+          path: trivy-report.json
+name: Security CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  security_scan:
+    name: Full Security Scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write   # REQUIRED for CodeQL
+
+    steps:
+      # -------------------
+      # 1. Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -------------------
+      # 2. Bandit - Python Security Analysis
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit (Medium & High)
+        run: |
+          bandit -r . -ll -f json -o bandit-report.json || true
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-findings
+          path: bandit-report.json
+
+      # -------------------
+      # 3. CodeQL - Deep Security Analysis (REPLACES SONAR)
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: CodeQL Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      # -------------------
+      # 4. Checkov - Infrastructure as Code Security
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov
+        run: |
+          checkov -d . --quiet --output json > checkov-report.json || true
+
+      - name: Upload Checkov Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-findings
+          path: checkov-report.json
+
+      # -------------------
+      # 5. TruffleHog - Secrets Detection
+      - name: Install TruffleHog
+        run: pip install trufflehog
+
+      - name: Run TruffleHog
+        run: |
+          trufflehog filesystem . --json > trufflehog-report.json || true
+
+      - name: Upload TruffleHog Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trufflehog-findings
+          path: trufflehog-report.json
+
+      # -------------------
+      # 6. Trivy - Container Security
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          sudo mv ./trivy /usr/local/bin/
+
+      - name: Run Trivy Scan
+        run: |
+          # Replace with your actual image name after build
+          trivy image demo-app --format json --output trivy-report.json || true
 
       - name: Upload Trivy Report
         uses: actions/upload-artifact@v4
