@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   security_scan:
-    name: Full Security Scan
+    name: Full Security & AI Safety Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -26,9 +26,7 @@ jobs:
         with:
           python-version: "3.10"
 
-   
       # 3. Bandit – Python SAST
-        
       - name: Install Bandit
         run: pip install bandit
 
@@ -43,9 +41,7 @@ jobs:
           name: bandit-findings
           path: bandit-report.json
 
-    
       # 4. CodeQL – Advanced SAST
-    
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
@@ -54,9 +50,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
 
-    
       # 5. Checkov – IaC & Config Security
-    
       - name: Install Checkov
         run: pip install checkov
 
@@ -71,9 +65,7 @@ jobs:
           name: checkov-findings
           path: checkov-report.json
 
-     
       # 6. TruffleHog – Secrets Scanning
-    
       - name: Install TruffleHog
         run: pip install trufflehog
 
@@ -88,9 +80,7 @@ jobs:
           name: trufflehog-findings
           path: trufflehog-report.json
 
-     
       # 7. Trivy – Dependency & FS Scan
-    
       - name: Install Trivy
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
@@ -106,3 +96,25 @@ jobs:
         with:
           name: trivy-findings
           path: trivy-report.json
+
+      # 8. AI-Specific Testing – Prompt Injection (NEW)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install Promptfoo
+        run: npm install -g promptfoo
+
+      - name: Run Prompt Injection Tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          promptfoo eval --output promptfoo-report.json
+
+      - name: Upload AI Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prompt-injection-findings
+          path: promptfoo-report.json
